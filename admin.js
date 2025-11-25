@@ -168,49 +168,135 @@ window.renderPetList = function(){
 }
 
 /***** PET CRUD *****/
-window.openAddPetModal = function(){
+window.openAddPetModal = function () {
   const body = document.createElement('div');
   body.innerHTML = `
     <div class="grid gap-3">
+
       <input id="m-pet-name" class="px-3 py-2 border rounded-lg" placeholder="Pet name" />
+
+      <input id="m-pet-breed" class="px-3 py-2 border rounded-lg" placeholder="Breed" />
+
+      <div class="grid grid-cols-2 gap-2">
+        <input id="m-pet-age" type="number" class="px-3 py-2 border rounded-lg" placeholder="Years Old" min="0" />
+
+        <select id="m-pet-gender" class="px-3 py-2 border rounded-lg">
+          <option value="">Gender</option>
+          <option>Male</option>
+          <option>Female</option>
+        </select>
+      </div>
+
       <div class="grid grid-cols-2 gap-2">
         <select id="m-pet-species" class="px-3 py-2 border rounded-lg">
-          <option>Dog</option><option>Cat</option><option>Rabbit</option><option>Other</option>
+          <option>Dog</option><option>Cat</option><option>Other</option>
         </select>
-        <input id="m-pet-age" type="number" class="px-3 py-2 border rounded-lg" placeholder="Age" min="0" />
+
+        <select id="m-pet-size" class="px-3 py-2 border rounded-lg">
+          <option value="">Size</option>
+          <option>Small</option>
+          <option>Medium</option>
+          <option>Large</option>
+        </select>
       </div>
+
+      <div class="grid grid-cols-2 gap-2">
+        <select id="m-pet-energy" class="px-3 py-2 border rounded-lg">
+          <option value="">Energy Level</option>
+          <option>Low</option>
+          <option>Medium</option>
+          <option>High</option>
+        </select>
+
+        <select id="m-pet-kids" class="px-3 py-2 border rounded-lg">
+          <option value="">Good with kids?</option>
+          <option>Yes</option>
+          <option>No</option>
+        </select>
+      </div>
+
+      <select id="m-pet-training" class="px-3 py-2 border rounded-lg">
+        <option value="">Training Level</option>
+        <option>Basic</option>
+        <option>Intermediate</option>
+        <option>Advanced</option>
+      </select>
+
+      <!-- STATUS ADDED -->
+      <select id="m-pet-status" class="px-3 py-2 border rounded-lg">
+        <option value="Available">Available</option>
+        <option value="Reserved">Reserved</option>
+        <option value="Adopted">Adopted</option>
+      </select>
+
+      <textarea id="m-pet-description" class="px-3 py-2 border rounded-lg" placeholder="Description"></textarea>
+
       <div>
         <label class="text-sm text-slate-600">Photo (max 500KB)</label>
         <input id="m-pet-photo" type="file" accept="image/*" class="mt-2" />
         <div id="m-pet-photo-preview" class="mt-2 w-20 h-20 rounded-full overflow-hidden bg-slate-100"></div>
       </div>
+
       <div class="flex gap-2">
         <button id="m-pet-save" class="px-3 py-2 rounded-lg accent-btn text-white font-semibold">Save Pet</button>
         <button id="m-pet-cancel" class="px-3 py-2 rounded-lg border">Cancel</button>
       </div>
+
     </div>
   `;
+
   showModal('Add New Pet', body);
 
   const fileInput = document.getElementById('m-pet-photo');
   const preview = document.getElementById('m-pet-photo-preview');
   let currentPhoto = null;
+
   fileInput.onchange = async (e) => {
     const f = e.target.files && e.target.files[0];
-    if(!f) return;
-    if(f.size > 500*1024){ alert('File too large (max 500KB)'); fileInput.value=''; return; }
+    if (!f) return;
+    if (f.size > 500 * 1024) { alert('File too large (max 500KB)'); fileInput.value = ''; return; }
     const data = await readFileAsDataURL(f);
     currentPhoto = data;
     preview.innerHTML = `<img src="${data}" class="w-full h-full object-cover">`;
   };
 
   document.getElementById('m-pet-cancel').onclick = closeModal;
+
   document.getElementById('m-pet-save').onclick = () => {
-    const name = (document.getElementById('m-pet-name').value||'').trim();
-    const species = (document.getElementById('m-pet-species').value||'').trim();
-    const age = parseInt(document.getElementById('m-pet-age').value||0);
-    if(!name || !species || isNaN(age)){ alert('Please fill all fields'); return; }
-    const newPet = { id: nextPetId++, name, species, age, status: 'Available', photo: currentPhoto, records: [] };
+    const name = (document.getElementById('m-pet-name').value || '').trim();
+    const breed = (document.getElementById('m-pet-breed').value || '').trim();
+    const species = (document.getElementById('m-pet-species').value || '').trim();
+    const age = parseInt(document.getElementById('m-pet-age').value || 0);
+    const gender = document.getElementById('m-pet-gender').value;
+    const size = document.getElementById('m-pet-size').value;
+    const energy = document.getElementById('m-pet-energy').value;
+    const kids = document.getElementById('m-pet-kids').value;
+    const training = document.getElementById('m-pet-training').value;
+    const description = document.getElementById('m-pet-description').value;
+    const status = document.getElementById('m-pet-status').value;
+
+    if (!name || !species || !breed || !gender || !size || !energy || !kids || !training || !description || isNaN(age)) {
+      alert('Please fill all fields');
+      return;
+    }
+
+    const newPet = {
+      id: nextPetId++,
+      name,
+      species,
+      breed,
+      gender,
+      size,
+      energy,
+      kids,
+      training,
+      description,
+      age,
+      status,
+      photo: currentPhoto,
+      records: []
+    };
+
     MOCK_PETS.push(newPet);
     saveData();
     renderPetList();
@@ -220,56 +306,119 @@ window.openAddPetModal = function(){
   };
 }
 
-window.openEditPetModal = function(petId){
-  const pet = MOCK_PETS.find(p=>p.id===petId);
-  if(!pet) return;
+/***** EDIT PET *****/
+window.openEditPetModal = function (petId) {
+  const pet = MOCK_PETS.find(p => p.id === petId);
+  if (!pet) return;
+
   const body = document.createElement('div');
   body.innerHTML = `
     <div class="grid gap-3">
+
       <input id="m-pet-name" class="px-3 py-2 border rounded-lg" value="${escapeHtml(pet.name)}" />
+
+      <input id="m-pet-breed" class="px-3 py-2 border rounded-lg" value="${escapeHtml(pet.breed || '')}" placeholder="Breed" />
+
+      <div class="grid grid-cols-2 gap-2">
+        <input id="m-pet-age" type="number" class="px-3 py-2 border rounded-lg" value="${pet.age}" min="0" />
+
+        <select id="m-pet-gender" class="px-3 py-2 border rounded-lg">
+          <option ${pet.gender === 'Male' ? 'selected' : ''}>Male</option>
+          <option ${pet.gender === 'Female' ? 'selected' : ''}>Female</option>
+        </select>
+      </div>
+
       <div class="grid grid-cols-2 gap-2">
         <select id="m-pet-species" class="px-3 py-2 border rounded-lg">
-          <option ${pet.species==='Dog'?'selected':''}>Dog</option>
-          <option ${pet.species==='Cat'?'selected':''}>Cat</option>
-          <option ${pet.species==='Rabbit'?'selected':''}>Rabbit</option>
-          <option ${pet.species==='Other'?'selected':''}>Other</option>
+          <option ${pet.species === 'Dog' ? 'selected' : ''}>Dog</option>
+          <option ${pet.species === 'Cat' ? 'selected' : ''}>Cat</option>
+          <option ${pet.species === 'Rabbit' ? 'selected' : ''}>Rabbit</option>
+          <option ${pet.species === 'Other' ? 'selected' : ''}>Other</option>
         </select>
-        <input id="m-pet-age" type="number" class="px-3 py-2 border rounded-lg" value="${pet.age}" min="0" />
+
+        <select id="m-pet-size" class="px-3 py-2 border rounded-lg">
+          <option ${pet.size === 'Small' ? 'selected' : ''}>Small</option>
+          <option ${pet.size === 'Medium' ? 'selected' : ''}>Medium</option>
+          <option ${pet.size === 'Large' ? 'selected' : ''}>Large</option>
+        </select>
       </div>
+
+      <div class="grid grid-cols-2 gap-2">
+        <select id="m-pet-energy" class="px-3 py-2 border rounded-lg">
+          <option ${pet.energy === 'Low' ? 'selected' : ''}>Low</option>
+          <option ${pet.energy === 'Medium' ? 'selected' : ''}>Medium</option>
+          <option ${pet.energy === 'High' ? 'selected' : ''}>High</option>
+        </select>
+
+        <select id="m-pet-kids" class="px-3 py-2 border rounded-lg">
+          <option ${pet.kids === 'Yes' ? 'selected' : ''}>Yes</option>
+          <option ${pet.kids === 'No' ? 'selected' : ''}>No</option>
+        </select>
+      </div>
+
+      <select id="m-pet-training" class="px-3 py-2 border rounded-lg">
+        <option ${pet.training === 'Basic' ? 'selected' : ''}>Basic</option>
+        <option ${pet.training === 'Intermediate' ? 'selected' : ''}>Intermediate</option>
+        <option ${pet.training === 'Advanced' ? 'selected' : ''}>Advanced</option>
+      </select>
+
+      <!-- STATUS ADDED -->
+      <select id="m-pet-status" class="px-3 py-2 border rounded-lg">
+        <option value="Available" ${pet.status === 'Available' ? 'selected' : ''}>Available</option>
+        <option value="Reserved" ${pet.status === 'Reserved' ? 'selected' : ''}>Reserved</option>
+        <option value="Adopted" ${pet.status === 'Adopted' ? 'selected' : ''}>Adopted</option>
+      </select>
+
+      <textarea id="m-pet-description" class="px-3 py-2 border rounded-lg">${escapeHtml(pet.description || '')}</textarea>
+
       <div>
         <label class="text-sm text-slate-600">Photo (max 500KB)</label>
         <input id="m-pet-photo" type="file" accept="image/*" class="mt-2" />
         <div id="m-pet-photo-preview" class="mt-2 w-20 h-20 rounded-full overflow-hidden bg-slate-100">
-          ${pet.photo? `<img src="${pet.photo}" class="w-full h-full object-cover">` : ''}
+          ${pet.photo ? `<img src="${pet.photo}" class="w-full h-full object-cover">` : ''}
         </div>
       </div>
+
       <div class="flex gap-2">
         <button id="m-pet-save" class="px-3 py-2 rounded-lg accent-btn text-white font-semibold">Save Changes</button>
         <button id="m-pet-cancel" class="px-3 py-2 rounded-lg border">Cancel</button>
       </div>
+
     </div>
   `;
+
   showModal('Edit Pet', body);
 
   const fileInput = document.getElementById('m-pet-photo');
   const preview = document.getElementById('m-pet-photo-preview');
   let currentPhoto = pet.photo;
+
   fileInput.onchange = async (e) => {
     const f = e.target.files && e.target.files[0];
-    if(!f) return;
-    if(f.size > 500*1024){ alert('File too large (max 500KB)'); fileInput.value=''; return; }
+    if (!f) return;
+    if (f.size > 500 * 1024) { alert('File too large (max 500KB)'); fileInput.value = ''; return; }
     const data = await readFileAsDataURL(f);
     currentPhoto = data;
     preview.innerHTML = `<img src="${data}" class="w-full h-full object-cover">`;
   };
 
   document.getElementById('m-pet-cancel').onclick = closeModal;
+
   document.getElementById('m-pet-save').onclick = () => {
-    const name = (document.getElementById('m-pet-name').value||'').trim();
-    const species = (document.getElementById('m-pet-species').value||'').trim();
-    const age = parseInt(document.getElementById('m-pet-age').value||0);
-    if(!name || !species || isNaN(age)){ alert('Please fill all fields'); return; }
-    pet.name = name; pet.species = species; pet.age = age; pet.photo = currentPhoto;
+
+    pet.name = document.getElementById('m-pet-name').value.trim();
+    pet.breed = document.getElementById('m-pet-breed').value.trim();
+    pet.gender = document.getElementById('m-pet-gender').value;
+    pet.species = document.getElementById('m-pet-species').value;
+    pet.size = document.getElementById('m-pet-size').value;
+    pet.energy = document.getElementById('m-pet-energy').value;
+    pet.kids = document.getElementById('m-pet-kids').value;
+    pet.training = document.getElementById('m-pet-training').value;
+    pet.description = document.getElementById('m-pet-description').value.trim();
+    pet.age = parseInt(document.getElementById('m-pet-age').value || 0);
+    pet.photo = currentPhoto;
+    pet.status = document.getElementById('m-pet-status').value;
+
     saveData();
     renderPetList();
     renderDashboard();
@@ -278,9 +427,11 @@ window.openEditPetModal = function(petId){
   };
 }
 
-window.confirmDeletePet = function(petId){
-  const pet = MOCK_PETS.find(p=>p.id===petId);
-  if(!pet) return;
+/***** DELETE PET *****/
+window.confirmDeletePet = function (petId) {
+  const pet = MOCK_PETS.find(p => p.id === petId);
+  if (!pet) return;
+
   showModal('Confirm Delete', `<div>
     <p>Are you sure you want to permanently delete <strong>${escapeHtml(pet.name)}</strong>?</p>
     <div class="mt-4 flex gap-2">
@@ -288,103 +439,107 @@ window.confirmDeletePet = function(petId){
       <button id="cancel-del" class="px-3 py-2 rounded-lg border">Cancel</button>
     </div>
   </div>`);
+
   document.getElementById('cancel-del').onclick = closeModal;
+
   document.getElementById('confirm-del').onclick = () => {
-    MOCK_PETS = MOCK_PETS.filter(p=>p.id!==petId);
-    // also remove related adoptions
-    MOCK_ADOPTIONS = MOCK_ADOPTIONS.filter(a=>a.petId!==petId);
+    MOCK_PETS = MOCK_PETS.filter(p => p.id !== petId);
+    MOCK_ADOPTIONS = MOCK_ADOPTIONS.filter(a => a.petId !== petId);
     saveData();
-    renderPetList(); renderAdoptionRequests(); renderDashboard();
+    renderPetList();
+    renderAdoptionRequests();
+    renderDashboard();
     closeModal();
     showToast('Pet deleted');
   };
 }
 
+
+
 /***** ADOPTION REQUESTS *****/
-window.renderAdoptionRequests = function(){
+window.renderAdoptionRequests = function() {
   const container = document.getElementById('adoption-requests');
-  const q = (document.getElementById('adoption-search').value||'').toLowerCase();
+  const q = (document.getElementById('adoption-search').value || '').toLowerCase();
   container.innerHTML = '';
-  const filtered = MOCK_ADOPTIONS.filter(a => `${a.petName} ${a.userName} ${a.status}`.toLowerCase().includes(q) || String(a.id)===q);
-  if(filtered.length===0){ container.innerHTML = `<div class="glass-card p-4 text-slate-600 italic">No requests found.</div>`; return; }
+
+  const filtered = MOCK_ADOPTIONS.filter(a =>
+    `${a.petName} ${a.userName} ${a.status}`.toLowerCase().includes(q) || String(a.id) === q
+  );
+
+  if (filtered.length === 0) {
+    container.innerHTML = `<div class="glass-card p-4 text-slate-600 italic">No requests found.</div>`;
+    return;
+  }
+
   filtered.forEach(a => {
-    const card = el('div','glass-card p-4 flex justify-between items-start gap-4');
+    const card = el('div', 'glass-card p-4 flex justify-between items-start gap-4');
     card.innerHTML = `<div class="flex-1">
       <div class="font-semibold">Application #${a.id} — ${escapeHtml(a.petName)}</div>
-      <div class="text-sm text-slate-600">Applicant: ${escapeHtml(a.userName)} • ${escapeHtml(a.notes||'')}</div>
+      <div class="text-sm text-slate-600">Applicant: ${escapeHtml(a.userName)} • ${escapeHtml(a.notes || '')}</div>
       <div class="mt-2"><span class="px-2 py-0.5 rounded-full text-xs border ${a.status==='Pending'?'border-yellow-300 text-yellow-700':'border-green-300 text-green-700'}">${a.status}</span></div>
     </div>`;
-    const actions = el('div','flex flex-col gap-2');
-    if(a.status==='Pending'){
-      const approve = el('button','px-3 py-1 rounded-md bg-green-600 text-white text-sm','Approve');
-      approve.onclick = () => updateAdoptionStatus(a.id,'Approved');
-      const reject = el('button','px-3 py-1 rounded-md bg-red-600 text-white text-sm','Reject');
-      reject.onclick = () => updateAdoptionStatus(a.id,'Rejected');
-      const more = el('button','px-3 py-1 rounded-md bg-amber-500 text-white text-sm','More Info');
-      more.onclick = () => updateAdoptionStatus(a.id,'Need More Info');
-      actions.appendChild(approve); actions.appendChild(reject); actions.appendChild(more);
+
+    const actions = el('div', 'flex flex-col gap-2');
+
+    if (a.status === 'Pending') {
+      const approve = el('button', 'px-3 py-1 rounded-md bg-green-600 text-white text-sm', 'Approve');
+      approve.onclick = () => updateAdoptionStatus(a.id, 'Approved');
+
+      const reject = el('button', 'px-3 py-1 rounded-md bg-red-600 text-white text-sm', 'Reject');
+      reject.onclick = () => updateAdoptionStatus(a.id, 'Rejected');
+
+      const viewInfo = el('button', 'px-3 py-1 rounded-md bg-amber-500 text-white text-sm', 'View Info');
+      viewInfo.onclick = () => {
+        const user = MOCK_USERS.find(u => u.id === a.userId);
+        if (!user) {
+          alert('User info not found');
+          return;
+        }
+        const infoBody = document.createElement('div');
+        infoBody.innerHTML = `
+          <p><strong>Name:</strong> ${escapeHtml(user.name)}</p>
+          <p><strong>Email:</strong> ${escapeHtml(user.email || 'N/A')}</p>
+          <p><strong>Phone:</strong> ${escapeHtml(user.phone || 'N/A')}</p>
+          <p><strong>Notes:</strong> ${escapeHtml(a.notes || 'None')}</p>
+        `;
+        showModal(`Applicant Info - ${escapeHtml(user.name)}`, infoBody);
+      };
+
+      actions.appendChild(approve);
+      actions.appendChild(reject);
+      actions.appendChild(viewInfo);
     } else {
-      const info = el('div','text-sm text-slate-600',`Status: ${a.status}`);
+      const info = el('div', 'text-sm text-slate-600', `Status: ${a.status}`);
       actions.appendChild(info);
     }
+
     card.appendChild(actions);
     container.appendChild(card);
   });
+
   lucide.createIcons();
-}
+};
 
-window.openCreateAdoptionModal = function(prefillPetId){
-  const body = document.createElement('div');
-  // build pet and user options
-  const petOptions = MOCK_PETS.map(p => `<option value="${p.id}">${escapeHtml(p.name)} (${p.species})</option>`).join('');
-  const userOptions = MOCK_USERS.map(u => `<option value="${u.id}">${escapeHtml(u.name)} (${u.email||''})</option>`).join('');
-  body.innerHTML = `
-    <div class="grid gap-3">
-      <label class="text-sm text-slate-600">Pet</label>
-      <select id="m-adv-pet" class="px-3 py-2 border rounded-lg">${petOptions}</select>
-      <label class="text-sm text-slate-600">Applicant</label>
-      <select id="m-adv-user" class="px-3 py-2 border rounded-lg">${userOptions}</select>
-      <textarea id="m-adv-notes" class="px-3 py-2 border rounded-lg" placeholder="Notes (fenced yard, experience...)"></textarea>
-      <div class="flex gap-2">
-        <button id="m-adv-save" class="px-3 py-2 rounded-lg accent-btn text-white font-semibold">Create Request</button>
-        <button id="m-adv-cancel" class="px-3 py-2 rounded-lg border">Cancel</button>
-      </div>
-    </div>
-  `;
-  showModal('New Adoption Request', body);
-  if(prefillPetId) document.getElementById('m-adv-pet').value = prefillPetId;
-  document.getElementById('m-adv-cancel').onclick = closeModal;
-  document.getElementById('m-adv-save').onclick = () => {
-    const petId = parseInt(document.getElementById('m-adv-pet').value);
-    const userId = document.getElementById('m-adv-user').value;
-    const notes = (document.getElementById('m-adv-notes').value||'').trim();
-    if(!petId || !userId){ alert('Select pet and applicant'); return; }
-    const pet = MOCK_PETS.find(p=>p.id===petId);
-    const user = MOCK_USERS.find(u=>u.id===userId);
-    const newA = { id: nextAdoptionId++, petId, petName: pet.name, userId, userName: user.name, status: 'Pending', notes };
-    MOCK_ADOPTIONS.push(newA);
-    saveData();
-    renderAdoptionRequests();
-    renderDashboard();
-    closeModal();
-    showToast('Adoption request created');
-  };
-}
+window.updateAdoptionStatus = function(appId, newStatus) {
+  const app = MOCK_ADOPTIONS.find(a => a.id === appId);
+  if (!app) return;
 
-window.updateAdoptionStatus = function(appId, newStatus){
-  const app = MOCK_ADOPTIONS.find(a=>a.id===appId);
-  if(!app) return;
   app.status = newStatus;
-  if(newStatus === 'Approved'){
-    const pet = MOCK_PETS.find(p=>p.id===app.petId);
-    if(pet) pet.status = 'Adopted';
+
+  if (newStatus === 'Approved') {
+    const pet = MOCK_PETS.find(p => p.id === app.petId);
+    if (pet) pet.status = 'Adopted';
   }
+
   saveData();
   renderAdoptionRequests();
   renderPetList();
   renderDashboard();
-  showToast(`Application ${appId} set to ${newStatus}`);
-}
+
+  showToast(`Application #${appId} set to ${newStatus}`);
+};
+
+
 
 /***** USER MANAGEMENT *****/
 window.renderUserList = function(){

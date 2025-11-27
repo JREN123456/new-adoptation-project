@@ -1,0 +1,1187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Account Flow | Pet Adoption</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet">
+    <!-- Include html2canvas for client-side content to image conversion (for downloading) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #f97316; /* Tailwind orange-600 */
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f1f5f9; /* slate-100 */
+        }
+        .nav-item {
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .nav-item.active {
+            background-color: var(--primary-color);
+            color: white;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+        }
+        .nav-item:hover:not(.active) {
+            background-color: #ffe8d9; /* Lightened primary */
+            transform: translateX(5px);
+        }
+        /* Custom scrollbar for better look */
+        .content-area::-webkit-scrollbar {
+            width: 8px;
+        }
+        .content-area::-webkit-scrollbar-thumb {
+            background-color: var(--primary-color);
+            border-radius: 10px;
+        }
+        .content-area::-webkit-scrollbar-track {
+            background-color: #e2e8f0;
+        }
+        /* Modal Backdrop */
+        .modal-backdrop {
+            background-color: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+        }
+        
+        /* Certificate Styles */
+        .certificate {
+            background: linear-gradient(135deg, #fffcf5, #fefefe);
+            border: 10px solid #f97316; /* orange-600 */
+            border-radius: 1rem;
+            padding: 2rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+            position: relative;
+            overflow: hidden;
+            /* Ensure the certificate has a fixed size for better download quality consistency */
+            width: 1000px; 
+            max-width: 100%;
+            margin: 0 auto;
+        }
+        .certificate::before {
+            content: "";
+            position: absolute;
+            top: -20%;
+            left: -20%;
+            width: 140%;
+            height: 140%;
+            background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-size="20" fill="%23fcd34d" opacity="0.1" transform="rotate(-30, 50, 50)">PAWS</text></svg>');
+            background-repeat: repeat;
+            pointer-events: none;
+            z-index: 0;
+        }
+        .certificate-content {
+            position: relative;
+            z-index: 10;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4 sm:p-8">
+
+    <!-- Main Container -->
+    <div id="app-container" class="w-full max-w-6xl bg-white shadow-2xl rounded-xl overflow-hidden min-h-[70vh] flex flex-col sm:flex-row">
+
+        <!-- Initial Login View -->
+        <div id="login-view" class="w-full p-8 sm:p-12 flex flex-col justify-center items-center">
+            <div class="max-w-md w-full">
+                <h1 class="text-3xl font-extrabold text-gray-800 text-center mb-2">Welcome Back!</h1>
+                <p class="text-gray-500 text-center mb-8">Sign in to manage your adoption journey.</p>
+
+                <div class="space-y-4">
+                    <input type="email" id="login-email" placeholder="Email Address" value="aaron.jay@example.com"
+                           class="w-full p-3 border border-gray-300 rounded-lg focus:ring-orange-500 focus:border-orange-500 transition duration-150">
+                    
+                    <!-- Password Input with Toggle Button (Login Screen) -->
+                    <div class="relative">
+                        <input type="password" id="login-password" placeholder="Password" value="password123"
+                               class="w-full p-3 border border-gray-300 rounded-lg focus:ring-orange-500 focus:border-orange-500 transition duration-150 pr-10">
+                        <button type="button" onclick="togglePasswordVisibility('login-password', 'toggle-password-icon')" 
+                                class="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 hover:text-orange-600 focus:outline-none" 
+                                aria-label="Toggle password visibility">
+                            <!-- Default: Eye Icon (Closed/Hidden) -->
+                            <svg id="toggle-password-icon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" title="Show Password">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                            </svg>
+                        </button>
+                    </div>
+
+                    <button id="login-button" onclick="handleLogin()"
+                            class="w-full bg-orange-600 text-white font-semibold py-3 rounded-lg hover:bg-orange-700 transition duration-200 shadow-md hover:shadow-lg focus:outline-none focus:ring-4 focus:ring-orange-300">
+                        Login
+                    </button>
+                    <div id="login-message" class="text-sm text-center mt-4 text-red-500 hidden"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Account Dashboard View (Hidden by default) -->
+        <div id="dashboard-view" class="w-full h-full hidden flex-col sm:flex-row">
+            
+            <!-- Sidebar Navigation -->
+            <div class="w-full sm:w-64 bg-slate-50 p-4 sm:p-6 border-r border-gray-200">
+                <h2 class="text-lg font-bold text-gray-800 mb-6 border-b pb-2">User Account</h2>
+                
+                <nav class="space-y-2">
+                    <a class="nav-item flex items-center p-3 rounded-lg text-gray-600 hover:text-orange-600 active-link" data-view="info">
+                        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0h4m-4 0v5m0-5h4"></path></svg>
+                        INFO
+                    </a>
+                    <a class="nav-item flex items-center p-3 rounded-lg text-gray-600 hover:text-orange-600" data-view="request">
+                        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5l3-3m-3 12h3m-3 3h3m-6-4h.01"></path></svg>
+                        ADOPTION REQUEST
+                    </a>
+                    <a class="nav-item flex items-center p-3 rounded-lg text-gray-600 hover:text-orange-600" data-view="history">
+                        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        HISTORY
+                    </a>
+                    <a class="nav-item flex items-center p-3 rounded-lg text-gray-600 hover:text-orange-600" data-view="favorites">
+                        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg>
+                        FAVORITES
+                    </a>
+                </nav>
+
+                <button onclick="handleLogout()" class="mt-8 flex items-center text-gray-500 hover:text-red-500 transition duration-150 p-3 w-full rounded-lg">
+                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                    Sign out
+                </button>
+            </div>
+
+            <!-- Content Area -->
+            <div class="flex-grow p-6 sm:p-8 content-area overflow-y-auto">
+                <h1 id="content-title" class="text-2xl font-extrabold text-gray-800 mb-6 border-b pb-2">Personal Information & Settings</h1>
+                
+                <div id="main-content-area">
+                    <!-- Dynamic content will be injected here -->
+                </div>
+
+                <!-- Global Message Box -->
+                <div id="message-box" class="fixed bottom-4 right-4 p-4 rounded-lg shadow-xl text-white transition-opacity duration-300 opacity-0 pointer-events-none z-50"></div>
+            </div>
+        </div>
+
+    </div>
+    
+    <!-- Modal Container (Hidden by default) -->
+    <div id="detail-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center modal-backdrop transition-opacity duration-300 opacity-0">
+        <!-- Increased max-w for certificate view -->
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-4xl m-4 transform transition-transform duration-300 scale-95">
+            <div class="flex justify-between items-center p-5 border-b border-gray-200">
+                <h3 id="modal-title" class="text-xl font-bold text-gray-800">Details</h3>
+                <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <div id="modal-body" class="p-5 space-y-4 max-h-[80vh] overflow-y-auto">
+                <!-- Content injected here -->
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+        // --- 1. MOCK DATA & UTILITIES ---
+        const MOCK_USER = {
+            id: "user-123",
+            firstName: "Aaron",
+            lastName: "Jay",
+            email: "aaron.jay@example.com",
+            birthday: "1990-01-15",
+            address: "123 Adoption St, City, State",
+            mobile: "555-1234",
+            joined: "2023-08-01",
+            profilePic: "https://placehold.co/100x100/f97316/ffffff?text=AJ"
+        };
+
+        let currentProfile = { ...MOCK_USER };
+        
+        // Temporary variable to hold the Data URL of a newly selected profile picture before saving
+        window.tempNewProfilePic = null;
+
+        let MOCK_FAVORITES = [
+            { id: 1, name: "Max (Golden Retriever)", species: "Dog", added: "2024-01-10" },
+            { id: 2, name: "Luna (Siamese)", species: "Cat", added: "2024-02-25" }
+        ];
+
+        let MOCK_APPLICATIONS = [
+            { id: 101, petName: "Max (Golden Retriever)", dateApplied: "2024-03-01", status: "Pending", details: "Initial application details for Max. Includes housing information and confirmation of a fenced yard. Waiting for Admin review." },
+            { id: 102, petName: "Biscotti (Hamster)", dateApplied: "2023-11-05", status: "Approved", details: "Application approved by Admin. The adoption contract has been signed and final pickup arrangements were scheduled." },
+            { id: 103, petName: "Shadow (Black Cat)", dateApplied: "2023-09-15", status: "Rejected", details: "Application rejected due to current housing regulations that restrict pets. A different property might be required. Detailed reason provided by staff." },
+        ];
+
+        let MOCK_HISTORY = [
+            // The Approved Adoption is critical for the View Certificate feature
+            { id: 201, petName: "Biscotti", type: "Approved Adoption", date: "2023-11-10", status: "Completed", details: "Adoption successfully finalized. Certificate issued. Biscotti is now happy in his new home!", species: "Hamster", microchip: "HS-33201", adopterName: "Aaron Jay" },
+            { id: 202, petName: "Shadow (Black Cat)", type: "Rejected Application", date: "2023-09-20", status: "Rejected", details: "Final rejection confirmation. Advised applicant to reapply when housing situation changes. Follow-up email sent." },
+            { id: 203, petName: "Rex (Labrador)", type: "Cancelled Application", date: "2023-07-01", status: "Cancelled", details: "Application voluntarily cancelled by the user. Reason: Found a pet closer to home." },
+        ];
+
+        const simulateApiCall = (data, delay = 500) => {
+            return new Promise(resolve => setTimeout(() => resolve(data), delay));
+        };
+
+        const showMessage = (message, type = 'success') => {
+            const box = document.getElementById('message-box');
+            box.textContent = message;
+            box.className = 'fixed bottom-4 right-4 p-4 rounded-lg shadow-xl text-white transition-opacity duration-300 z-50';
+
+            if (type === 'success') {
+                box.classList.add('bg-green-500');
+            } else if (type === 'error') {
+                box.classList.add('bg-red-500');
+            } else if (type === 'info') {
+                box.classList.add('bg-blue-500');
+            }
+            
+            box.classList.remove('opacity-0', 'pointer-events-none');
+            box.classList.add('opacity-100');
+
+            setTimeout(() => {
+                box.classList.remove('opacity-100');
+                box.classList.add('opacity-0', 'pointer-events-none');
+                setTimeout(() => box.className = 'fixed bottom-4 right-4 p-4 rounded-lg shadow-xl text-white transition-opacity duration-300 opacity-0 pointer-events-none z-50', 300);
+            }, 3000);
+        };
+
+        // --- MODAL UTILITIES ---
+
+        function openModal(title, contentHtml) {
+            const modal = document.getElementById('detail-modal');
+            document.getElementById('modal-title').textContent = title;
+            // The modal body is where the main content (like the form) goes.
+            document.getElementById('modal-body').innerHTML = contentHtml;
+            
+            modal.classList.remove('hidden', 'opacity-0');
+            modal.classList.add('opacity-100');
+            // Animate content scale for effect
+            modal.querySelector('div.max-w-4xl').classList.remove('scale-95');
+            modal.querySelector('div.max-w-4xl').classList.add('scale-100');
+            document.body.classList.add('overflow-hidden'); // Prevent background scrolling
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('detail-modal');
+            // Reverse animation
+            modal.querySelector('div.max-w-4xl').classList.remove('scale-100');
+            modal.querySelector('div.max-w-4xl').classList.add('scale-95');
+
+            modal.classList.remove('opacity-100');
+            modal.classList.add('opacity-0');
+
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                document.getElementById('modal-body').innerHTML = ''; // Clear content
+                document.body.classList.remove('overflow-hidden');
+            }, 300); // Wait for transition
+        }
+
+        /**
+         * Toggles the visibility of the password input field between 'password' and 'text' types.
+         * @param {string} inputId The ID of the password input field.
+         * @param {string} iconId The ID of the SVG icon element.
+         */
+        function togglePasswordVisibility(inputId, iconId) {
+            const passwordInput = document.getElementById(inputId);
+            const icon = document.getElementById(iconId);
+            
+            if (!passwordInput || !icon) return;
+
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                // Change icon to eye-slash (hidden eye)
+                icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.542-7a9.55 9.55 0 011.644-3.522m1.077-1.077A9.55 9.55 0 0112 5c4.478 0 8.268 2.943 9.542 7a10.05 10.05 0 01-1.358 3.023M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.286 9.172L12 12m0 0l3.714 3.714M12 12l3.714-3.714M12 12L8.286 15.828"></path>';
+                icon.setAttribute('title', 'Hide Password');
+            } else {
+                passwordInput.type = 'password';
+                // Change icon back to eye (open eye)
+                icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>';
+                icon.setAttribute('title', 'Show Password');
+            }
+        }
+
+        // Re-usable function for password toggles inside the modal
+        function toggleModalPasswordVisibility(inputId) {
+            // IDs inside the modal use the pattern 'inputId-icon' for the SVG
+            togglePasswordVisibility(inputId, `${inputId}-icon`);
+        }
+
+
+        // --- 2. NAVIGATION & AUTH FLOW ---
+
+        function handleLogin() {
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+            const msgBox = document.getElementById('login-message');
+            
+            msgBox.textContent = 'Verifying credentials...';
+            msgBox.classList.remove('hidden');
+
+            // Simulate Backend verification
+            simulateApiCall({ success: true, user: MOCK_USER }, 1500)
+                .then(response => {
+                    if (response.success) {
+                        currentProfile = response.user;
+                        document.getElementById('login-view').classList.add('hidden');
+                        document.getElementById('dashboard-view').classList.remove('hidden');
+                        msgBox.classList.add('hidden');
+                        
+                        // Redirect to profile page (INFO)
+                        changeView('info'); 
+                    } else {
+                        msgBox.textContent = 'Login failed. Check email and password.';
+                    }
+                });
+        }
+
+        function handleLogout() {
+            currentProfile = {}; // Clear user session
+            document.getElementById('dashboard-view').classList.add('hidden');
+            document.getElementById('login-view').classList.remove('hidden');
+            document.getElementById('login-email').value = MOCK_USER.email; // Keep pre-filled
+            document.getElementById('login-password').value = 'password123'; // Keep pre-filled
+            showMessage('Signed out successfully.', 'info');
+        }
+
+        function changeView(viewName) {
+            // Update navigation styles
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active', 'text-white', 'text-orange-600');
+                item.classList.add('text-gray-600', 'hover:text-orange-600');
+                if (item.getAttribute('data-view') === viewName) {
+                    item.classList.add('active', 'text-white');
+                    item.classList.remove('text-gray-600', 'hover:text-orange-600');
+                }
+            });
+
+            const contentArea = document.getElementById('main-content-area');
+            const titleElement = document.getElementById('content-title');
+
+            contentArea.innerHTML = `<div class="p-8 text-center text-gray-400">Loading ${viewName.toUpperCase()}...</div>`;
+
+            // Load data and render content based on view
+            switch (viewName) {
+                case 'info':
+                    titleElement.textContent = 'Personal Information & Settings (INFO)';
+                    renderInfoView();
+                    break;
+                case 'favorites':
+                    titleElement.textContent = 'Saved Pets (FAVORITES)';
+                    renderFavoritesView();
+                    break;
+                case 'request':
+                    titleElement.textContent = 'Adoption Applications (ADOPTION REQUEST)';
+                    renderAdoptionRequestView();
+                    break;
+                case 'history':
+                    titleElement.textContent = 'Activity History (HISTORY)';
+                    renderHistoryView();
+                    break;
+                default:
+                    contentArea.innerHTML = `<div class="p-8 text-center text-red-500">View not found.</div>`;
+            }
+        }
+
+        // --- 3. INFO (User Profile Page) Implementation ---
+        
+        /**
+         * Handles the client-side preview of the selected profile picture.
+         * Updates the image in the profile summary card.
+         */
+        function handleProfilePicChange(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    // 1. Update the profile picture in the summary card immediately for preview
+                    const profileImg = document.getElementById('profile-pic');
+                    if(profileImg) {
+                        profileImg.src = e.target.result;
+                    }
+                    // 2. Store the Data URL in a temporary global variable to be saved later
+                    window.tempNewProfilePic = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function renderInfoView() {
+            // Reset the temporary profile picture variable when the view loads
+            window.tempNewProfilePic = null; 
+
+            // System loads user data from database (Simulated)
+            simulateApiCall(currentProfile)
+                .then(user => {
+                    const content = `
+                        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                            <!-- Profile Summary Card -->
+                            <div class="lg:col-span-1 bg-orange-100 p-6 rounded-xl flex flex-col items-center text-center shadow-lg">
+                                <div class="w-28 h-28 bg-orange-600 rounded-full flex items-center justify-center mb-4 overflow-hidden relative border-4 border-orange-300">
+                                    <img id="profile-pic" src="${user.profilePic}" alt="Profile Picture" class="w-full h-full object-cover">
+                                </div>
+                                <h3 class="text-xl font-bold text-gray-800">${user.firstName} ${user.lastName}</h3>
+                                <p class="text-sm text-orange-600 mb-6">${user.email}</p>
+                                
+                                <div class="w-full space-y-3 text-left text-gray-700">
+                                    <div class="flex justify-between border-b pb-1 text-sm"><span class="font-medium">Birthday:</span> <span>${user.birthday}</span></div>
+                                    <div class="flex justify-between border-b pb-1 text-sm"><span class="font-medium">Mobile:</span> <span>${user.mobile}</span></div>
+                                    <div class="flex justify-between border-b pb-1 text-sm"><span class="font-medium">Joined:</span> <span>${user.joined}</span></div>
+                                    <div class="text-sm"><span class="font-medium">Address:</span> <span class="block mt-1">${user.address}</span></div>
+                                </div>
+                            </div>
+
+                            <!-- Edit Form and Actions -->
+                            <div class="lg:col-span-2 bg-white p-6 rounded-xl border border-gray-200 shadow-lg">
+                                <h3 class="text-xl font-semibold text-gray-800 mb-6">Edit Profile Information</h3>
+                                <form id="edit-profile-form" class="space-y-4">
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label for="input-firstname" class="block text-sm font-medium text-gray-700">First Name</label>
+                                            <input type="text" id="input-firstname" value="${user.firstName}" class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500">
+                                        </div>
+                                        <div>
+                                            <label for="input-lastname" class="block text-sm font-medium text-gray-700">Last Name</label>
+                                            <input type="text" id="input-lastname" value="${user.lastName}" class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500">
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label for="input-email" class="block text-sm font-medium text-gray-700">Email</label>
+                                        <input type="email" id="input-email" value="${user.email}" readonly disabled class="mt-1 block w-full p-2 border border-gray-200 bg-gray-50 rounded-md">
+                                    </div>
+                                    <div>
+                                        <label for="input-address" class="block text-sm font-medium text-gray-700">Address</label>
+                                        <input type="text" id="input-address" value="${user.address}" class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500">
+                                    </div>
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label for="input-birthday" class="block text-sm font-medium text-gray-700">Birthday</label>
+                                            <input type="date" id="input-birthday" value="${user.birthday}" class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500">
+                                        </div>
+                                        <div>
+                                            <label for="input-mobile" class="block text-sm font-medium text-gray-700">Mobile</label>
+                                            <input type="tel" id="input-mobile" value="${user.mobile}" class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500">
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Upload Profile Picture with OnChange Handler -->
+                                    <div class="pt-4 border-t border-gray-200">
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Change Profile Picture</label>
+                                        <input type="file" id="input-profile-pic" onchange="handleProfilePicChange(event)" accept="image/*" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-orange-50 file:text-orange-700 hover:file:bg-orange-100">
+                                    </div>
+                                    
+                                    <div class="pt-6">
+                                        <button type="submit" class="bg-orange-600 text-white font-semibold py-2 px-6 rounded-lg hover:bg-orange-700 transition duration-200 focus:outline-none focus:ring-4 focus:ring-orange-300">
+                                            Save Changes
+                                        </button>
+                                    </div>
+                                </form>
+
+                                <div class="mt-8 pt-6 border-t border-gray-200">
+                                    <h3 class="text-xl font-semibold text-gray-800 mb-4">Change Password</h3>
+                                    <button onclick="handleChangePassword()" class="bg-gray-700 text-white font-semibold py-2 px-6 rounded-lg hover:bg-gray-800 transition duration-200 focus:outline-none focus:ring-4 focus:ring-gray-300">
+                                        Change Password
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    document.getElementById('main-content-area').innerHTML = content;
+                    
+                    // Attach event listener for the form submission
+                    document.getElementById('edit-profile-form').addEventListener('submit', handleProfileSave);
+
+                });
+        }
+
+        function handleProfileSave(event) {
+            event.preventDefault();
+            const form = event.target;
+            const updateData = {
+                firstName: form.elements['input-firstname'].value,
+                lastName: form.elements['input-lastname'].value,
+                address: form.elements['input-address'].value,
+                birthday: form.elements['input-birthday'].value,
+                mobile: form.elements['input-mobile'].value,
+            };
+
+            // Include new profile picture if one was selected
+            if (window.tempNewProfilePic) {
+                updateData.profilePic = window.tempNewProfilePic;
+            }
+
+            // System validates and updates DB (Simulated PUT /api/users/{id})
+            showMessage('Saving profile changes...', 'info');
+            simulateApiCall(updateData, 1000)
+                .then(data => {
+                    // Update the local mock profile
+                    currentProfile = { ...currentProfile, ...data };
+                    // Reset the temporary variable after successful save
+                    window.tempNewProfilePic = null;
+                    
+                    // Shows "Updated Successfully"
+                    showMessage('Updated Successfully', 'success');
+                    // Re-render the INFO view to show updated data
+                    renderInfoView(); 
+                });
+        }
+        
+        // --- PASSWORD CHANGE FUNCTIONS ---
+
+        function handleChangePassword() {
+            // Generate HTML for the password change form in a modal
+            const contentHtml = `
+                <form id="change-password-form" class="space-y-4">
+                    <div class="relative">
+                        <label for="current-password" class="block text-sm font-medium text-gray-700">Current Password</label>
+                        <input type="password" id="current-password" required
+                               class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500 pr-10">
+                        <button type="button" onclick="toggleModalPasswordVisibility('current-password')" 
+                                class="absolute inset-y-0 right-0 top-6 flex items-center pr-3 text-gray-500 hover:text-orange-600 focus:outline-none" 
+                                aria-label="Toggle current password visibility">
+                            <svg id="current-password-icon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" title="Show Password">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                            </svg>
+                        </button>
+                    </div>
+
+                    <div class="relative">
+                        <label for="new-password" class="block text-sm font-medium text-gray-700">New Password</label>
+                        <input type="password" id="new-password" required
+                               class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500 pr-10">
+                        <button type="button" onclick="toggleModalPasswordVisibility('new-password')" 
+                                class="absolute inset-y-0 right-0 top-6 flex items-center pr-3 text-gray-500 hover:text-orange-600 focus:outline-none" 
+                                aria-label="Toggle new password visibility">
+                            <svg id="new-password-icon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" title="Show Password">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                            </svg>
+                        </button>
+                    </div>
+
+                    <div class="relative">
+                        <label for="confirm-password" class="block text-sm font-medium text-gray-700">Confirm New Password</label>
+                        <input type="password" id="confirm-password" required
+                               class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500 pr-10">
+                        <button type="button" onclick="toggleModalPasswordVisibility('confirm-password')" 
+                                class="absolute inset-y-0 right-0 top-6 flex items-center pr-3 text-gray-500 hover:text-orange-600 focus:outline-none" 
+                                aria-label="Toggle confirm password visibility">
+                            <svg id="confirm-password-icon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" title="Show Password">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                            </svg>
+                        </button>
+                    </div>
+
+                    <div id="password-error-message" class="text-red-500 text-sm hidden"></div>
+
+                    <div class="flex justify-end pt-4">
+                        <button type="button" onclick="closeModal()" class="bg-gray-300 text-gray-800 font-semibold py-2 px-4 rounded-lg hover:bg-gray-400 transition mr-2">
+                            Cancel
+                        </button>
+                        <button type="submit" id="password-submit-btn" class="bg-orange-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-orange-700 transition duration-200 focus:outline-none focus:ring-4 focus:ring-orange-300">
+                            Update Password
+                        </button>
+                    </div>
+                </form>
+            `;
+            openModal('Change Account Password', contentHtml);
+            
+            // Attach event listener after the form is rendered in the modal
+            document.getElementById('change-password-form').addEventListener('submit', handlePasswordChangeSubmit);
+        }
+
+        function handlePasswordChangeSubmit(event) {
+            event.preventDefault();
+            const currentPassword = document.getElementById('current-password').value;
+            const newPassword = document.getElementById('new-password').value;
+            const confirmPassword = document.getElementById('confirm-password').value;
+            const errorBox = document.getElementById('password-error-message');
+            const submitBtn = document.getElementById('password-submit-btn');
+
+            errorBox.classList.add('hidden');
+            errorBox.textContent = '';
+
+            // Basic Client-side Validation
+            if (currentPassword === '' || newPassword === '' || confirmPassword === '') {
+                errorBox.textContent = 'All fields are required.';
+                errorBox.classList.remove('hidden');
+                return;
+            }
+
+            if (newPassword !== confirmPassword) {
+                errorBox.textContent = 'New password and confirmation do not match.';
+                errorBox.classList.remove('hidden');
+                return;
+            }
+            
+            if (newPassword === currentPassword) {
+                errorBox.textContent = 'New password must be different from the current password.';
+                errorBox.classList.remove('hidden');
+                return;
+            }
+
+            // Disable button and show loading state
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Updating...';
+            submitBtn.classList.add('opacity-50', 'cursor-not-allowed');
+
+            // Simulate API call to update password
+            // Simulating success after 2 seconds
+            simulateApiCall({ success: true, validationError: false }, 2000)
+                .then(response => {
+                    if (response.success) {
+                        closeModal();
+                        // In a real app, this would also clear the current session and require re-login
+                        showMessage('Password updated successfully! Please re-login on next session.', 'success');
+                    } else if (response.validationError) {
+                        // Simulate common failure case (e.g., incorrect current password)
+                        errorBox.textContent = 'Update failed: Current password was incorrect.';
+                        errorBox.classList.remove('hidden');
+                    } else {
+                        errorBox.textContent = 'An unknown update error occurred.';
+                        errorBox.classList.remove('hidden');
+                    }
+                })
+                .catch(() => {
+                    errorBox.textContent = 'An unexpected network error occurred.';
+                    errorBox.classList.remove('hidden');
+                })
+                .finally(() => {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Update Password';
+                    submitBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                });
+        }
+        
+        // --- END PASSWORD CHANGE FUNCTIONS ---
+
+        // --- 4. FAVORITES Implementation ---
+
+        function renderFavoritesView() {
+            // Simulate data load
+            simulateApiCall(MOCK_FAVORITES)
+                .then(favorites => {
+                    if (favorites.length === 0) {
+                        document.getElementById('main-content-area').innerHTML = `<div class="p-8 text-center text-gray-500 bg-white rounded-xl shadow-lg">You haven't saved any pets yet.</div>`;
+                        return;
+                    }
+
+                    const listHtml = favorites.map(pet => `
+                        <div class="flex items-center justify-between bg-white p-4 sm:p-6 rounded-lg shadow border border-gray-100 hover:shadow-md transition duration-200">
+                            <div>
+                                <h4 class="text-lg font-bold text-gray-800">${pet.name}</h4>
+                                <p class="text-sm text-gray-500">Species: ${pet.species} | Added: ${pet.added}</p>
+                            </div>
+                            <div class="flex space-x-3">
+                                <button onclick="handleApplyForAdoption(${pet.id}, '${pet.name}')" class="text-sm bg-green-500 text-white py-2 px-4 rounded-lg hover:bg-green-600 transition">
+                                    Apply for Adoption
+                                </button>
+                                <button onclick="handleRemoveFavorite(${pet.id})" class="text-sm text-red-500 border border-red-500 py-2 px-4 rounded-lg hover:bg-red-50 hover:text-red-600 transition">
+                                    Remove
+                                </button>
+                            </div>
+                        </div>
+                    `).join('');
+
+                    document.getElementById('main-content-area').innerHTML = `
+                        <p class="text-gray-600 mb-6">You have saved ${favorites.length} pets you are interested in adopting. Review them below.</p>
+                        <div class="space-y-4">
+                            ${listHtml}
+                        </div>
+                    `;
+                });
+        }
+
+        function handleRemoveFavorite(petId) {
+            // Simulate DELETE /api/users/{id}/favorites/{petId}
+            showMessage('Removing from favorites...', 'info');
+            simulateApiCall({}, 500)
+                .then(() => {
+                    MOCK_FAVORITES = MOCK_FAVORITES.filter(p => p.id !== petId);
+                    showMessage('Pet removed from favorites.', 'success');
+                    renderFavoritesView();
+                });
+        }
+
+        function handleApplyForAdoption(petId, petName) {
+            // Simulate navigation to the adoption form/flow
+            showMessage(`Applying for ${petName}. Simulating form filling and submission...`, 'info');
+            
+            // Simulating a successful submission flow
+            simulateApiCall({ petName, dateApplied: new Date().toLocaleDateString(), status: "Pending" }, 1500)
+                .then(newRequest => {
+                    // Backend saves (POST /api/adoptions)
+                    MOCK_APPLICATIONS.unshift({ 
+                        id: Date.now(), 
+                        petName: newRequest.petName, 
+                        dateApplied: newRequest.dateApplied, 
+                        status: newRequest.status, 
+                        details: `Application initiated from Favorites for ${petName}. Submitted basic profile information and confirmed willingness for a house check.`
+                    });
+                    
+                    showMessage(`Application for ${petName} submitted! Status: Pending.`, 'success');
+                    // Redirect to ADOPTION REQUEST view
+                    changeView('request');
+                });
+        }
+
+        // --- 5. ADOPTION REQUEST (User's Own Applications) Implementation ---
+
+        function getStatusColor(status) {
+            switch(status) {
+                case 'Approved':
+                case 'Completed': 
+                    return 'bg-green-100 text-green-800';
+                case 'Rejected':
+                case 'Cancelled':
+                    return 'bg-red-100 text-red-800';
+                case 'Pending': 
+                default: 
+                    return 'bg-yellow-100 text-yellow-800';
+            }
+        }
+
+        function renderAdoptionRequestView() {
+            // Simulate data load
+            simulateApiCall(MOCK_APPLICATIONS)
+                .then(requests => {
+                    if (requests.length === 0) {
+                        document.getElementById('main-content-area').innerHTML = `<div class="p-8 text-center text-gray-500 bg-white rounded-xl shadow-lg">You have no adoption applications.</div>`;
+                        return;
+                    }
+
+                    const tableRows = requests.map(req => {
+                        const isPending = req.status === 'Pending';
+                        return `
+                            <tr class="border-b hover:bg-gray-50 transition duration-150">
+                                <td class="p-4 font-medium text-gray-900">${req.petName}</td>
+                                <td class="p-4 text-gray-500">${req.dateApplied}</td>
+                                <td class="p-4">
+                                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(req.status)}">
+                                        ${req.status}
+                                    </span>
+                                </td >
+                                <td class="p-4 text-sm space-x-2">
+                                    <button onclick="handleViewDetails('request', ${req.id})" class="text-blue-600 hover:text-blue-800 font-medium">View</button>
+                                    ${isPending ? `<button onclick="handleEditRequest(${req.id})" class="text-orange-600 hover:text-orange-800 font-medium">Edit</button>` : ''}
+                                    <button onclick="handleCancelRequest(${req.id}, '${req.petName}', ${isPending})" class="text-red-600 hover:text-red-800 font-medium">Cancel</button>
+                                </td>
+                            </tr>
+                        `;
+                    }).join('');
+
+                    document.getElementById('main-content-area').innerHTML = `
+                        <p class="text-gray-600 mb-6">Review the status of your adoption applications below. You can only edit Pending applications.</p>
+                        <div class="overflow-x-auto bg-white rounded-xl shadow-lg border border-gray-200">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pet Name</th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date Applied</th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                    ${tableRows}
+                                </tbody>
+                            </table>
+                        </div>
+                    `;
+                });
+        }
+
+        function handleViewDetails(type, id) {
+            let item;
+            let title;
+            let data;
+            
+            if (type === 'request') {
+                item = MOCK_APPLICATIONS.find(r => r.id === id);
+                title = `Application Details for ${item.petName}`;
+                data = {
+                    'Application ID': item.id,
+                    'Pet Name': item.petName,
+                    'Date Applied': item.dateApplied,
+                    'Status': item.status,
+                    'Details': item.details
+                };
+            } else if (type === 'history') {
+                item = MOCK_HISTORY.find(h => h.id === id);
+                title = `History Record for ${item.petName}`;
+                data = {
+                    'Record ID': item.id,
+                    'Pet Name': item.petName,
+                    'Date': item.date,
+                    'Type': item.type,
+                    'Status': item.status,
+                    'Details': item.details
+                };
+            }
+            
+            if (item) {
+                // Build HTML content for the modal body
+                let contentHtml = Object.entries(data).map(([key, value]) => `
+                    <div class="flex flex-col sm:flex-row border-b pb-2">
+                        <span class="font-semibold w-full sm:w-1/3 text-gray-700">${key}:</span>
+                        <span class="w-full sm:w-2/3 text-gray-600 ${key === 'Status' ? 'font-bold' : ''}">${key === 'Status' ? `<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(value)}">${value}</span>` : value}</span>
+                    </div>
+                `).join('');
+
+                openModal(title, contentHtml);
+            } else {
+                showMessage('Error: Item not found.', 'error');
+            }
+        }
+
+        // Function to handle opening the edit modal
+        function handleEditRequest(requestId) {
+            const req = MOCK_APPLICATIONS.find(r => r.id === requestId);
+            
+            if (!req) {
+                showMessage('Error: Application not found.', 'error');
+                return;
+            }
+
+            if (req.status !== 'Pending') {
+                showMessage(`Cannot edit application for ${req.petName}. Status is ${req.status}.`, 'error');
+                return;
+            }
+
+            // Generate HTML for the editing form
+            const contentHtml = `
+                <form id="edit-request-form" onsubmit="handleRequestUpdate(event, ${req.id})" class="space-y-4">
+                    <h4 class="text-lg font-bold text-gray-800">Editing Application for ${req.petName}</h4>
+                    <p class="text-sm text-gray-600">Only the details section is editable at this stage. You can provide updates on your housing, experience, or availability for a visit.</p>
+
+                    <div class="pt-2">
+                        <label for="input-request-details" class="block text-sm font-medium text-gray-700">Application Details (Max 500 characters)</label>
+                        <textarea id="input-request-details" rows="6" maxlength="500" required
+                                  class="mt-1 block w-full p-3 border border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500 transition duration-150">${req.details}</textarea>
+                        <p class="text-xs text-gray-500 mt-1">Please summarize any updates or changes to your adoption eligibility.</p>
+                    </div>
+
+                    <div id="request-edit-message" class="text-sm text-red-500 hidden"></div>
+
+                    <div class="flex justify-end pt-4">
+                        <button type="button" onclick="closeModal()" class="bg-gray-300 text-gray-800 font-semibold py-2 px-4 rounded-lg hover:bg-gray-400 transition mr-2">
+                            Cancel
+                        </button>
+                        <button type="submit" id="request-submit-btn" class="bg-orange-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-orange-700 transition duration-200 focus:outline-none focus:ring-4 focus:ring-orange-300">
+                            Save Updates
+                        </button>
+                    </div>
+                </form>
+            `;
+            openModal(`Edit Application #${req.id}`, contentHtml);
+        }
+        
+        // Function to handle the form submission for request update
+        function handleRequestUpdate(event, requestId) {
+            event.preventDefault();
+            const newDetails = document.getElementById('input-request-details').value;
+            const submitBtn = document.getElementById('request-submit-btn');
+
+            // Find the index of the request to update
+            const requestIndex = MOCK_APPLICATIONS.findIndex(r => r.id === requestId);
+            
+            if (requestIndex === -1) {
+                showMessage('Update failed: Application not found.', 'error');
+                closeModal();
+                return;
+            }
+
+            // Disable button and show loading state
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Saving...';
+            submitBtn.classList.add('opacity-50', 'cursor-not-allowed');
+
+            // Simulate API call to update the request details
+            showMessage(`Saving updates for application #${requestId}...`, 'info');
+            simulateApiCall({ success: true }, 1500)
+                .then(response => {
+                    if (response.success) {
+                        // Update the local mock data
+                        MOCK_APPLICATIONS[requestIndex].details = newDetails;
+                        
+                        closeModal();
+                        showMessage('Application updated successfully!', 'success');
+                        // Re-render the request view to show the current data
+                        renderAdoptionRequestView();
+                    } else {
+                        // In a real application, display server error messages
+                        document.getElementById('request-edit-message').textContent = 'Server error during update.';
+                        document.getElementById('request-edit-message').classList.remove('hidden');
+                    }
+                })
+                .catch(() => {
+                    document.getElementById('request-edit-message').textContent = 'A network error occurred.';
+                    document.getElementById('request-edit-message').classList.remove('hidden');
+                })
+                .finally(() => {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Save Updates';
+                    submitBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                });
+        }
+
+
+        function handleCancelRequest(requestId, petName, isPending) {
+            // Find the request to add to history before removing from current requests
+            const requestToCancel = MOCK_APPLICATIONS.find(r => r.id === requestId);
+            if (!requestToCancel) return;
+
+            // Simulate cancellation confirmation
+            showMessage(`Cancelling application for ${petName}...`, 'info');
+            simulateApiCall({}, 1000)
+                .then(() => {
+                    // Update the details for the history entry
+                    const historyDetails = requestToCancel.details ? 
+                        `Application originally submitted with details: "${requestToCancel.details}". Voluntarily cancelled by user.` : 
+                        "Application voluntarily cancelled by user.";
+                        
+                    // Move from requests to history
+                    MOCK_APPLICATIONS = MOCK_APPLICATIONS.filter(r => r.id !== requestId);
+                    MOCK_HISTORY.unshift({ 
+                        id: Date.now(), 
+                        petName: petName, 
+                        type: "Cancelled Application", 
+                        date: new Date().toLocaleDateString(), 
+                        status: "Cancelled",
+                        details: historyDetails
+                    });
+                    
+                    showMessage(`Application for ${petName} has been cancelled.`, 'success');
+                    renderAdoptionRequestView();
+                });
+        }
+
+        // --- 6. HISTORY Implementation ---
+
+        function renderHistoryView() {
+            // Backend retrieves records where status = Completed / Rejected (Simulated)
+            simulateApiCall(MOCK_HISTORY.filter(h => h.status !== 'Pending'))
+                .then(history => {
+                    if (history.length === 0) {
+                        document.getElementById('main-content-area').innerHTML = `<div class="p-8 text-center text-gray-500 bg-white rounded-xl shadow-lg">No past actions found in your history.</div>`;
+                        return;
+                    }
+
+                    const listHtml = history.map(item => {
+                        const isApproved = item.type === 'Approved Adoption';
+                        let tagColor = isApproved ? 'bg-green-500' : (item.status === 'Rejected' || item.status === 'Cancelled' ? 'bg-red-500' : 'bg-gray-500');
+
+                        return `
+                            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-white p-4 sm:p-6 rounded-lg shadow border border-gray-100">
+                                <div class="mb-2 sm:mb-0">
+                                    <h4 class="text-lg font-bold text-gray-800">${item.petName}</h4>
+                                    <p class="text-sm text-gray-500">
+                                        <span class="inline-block py-1 px-2 text-xs font-semibold text-white rounded-full ${tagColor}">${item.type}</span>
+                                        <span class="ml-2"> on ${item.date}</span>
+                                    </p>
+                                </div>
+                                <div class="flex space-x-3">
+                                    <button onclick="handleViewDetails('history', ${item.id})" class="text-sm text-blue-600 border border-blue-600 py-2 px-4 rounded-lg hover:bg-blue-50 transition">
+                                        View Details
+                                    </button>
+                                    ${isApproved ? 
+                                        `<button onclick="handleViewCertificate(${item.id})" class="text-sm bg-orange-600 text-white py-2 px-4 rounded-lg hover:bg-orange-700 transition">
+                                            View Certificate
+                                        </button>
+                                        <button onclick="handleDownloadCertificateTrigger(${item.id})" class="text-sm bg-gray-700 text-white py-2 px-4 rounded-lg hover:bg-gray-800 transition">
+                                            Download
+                                        </button>` 
+                                    : ''}
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+
+                    document.getElementById('main-content-area').innerHTML = `
+                        <p class="text-gray-600 mb-6">This section includes approved adoptions, rejected, and cancelled applications/interactions.</p>
+                        <div class="space-y-4">
+                            ${listHtml}
+                        </div>
+                    `;
+                });
+        }
+
+        // --- NEW FEATURE: View Adoption Certificate ---
+
+        function handleViewCertificate(historyId) {
+            const adoptionRecord = MOCK_HISTORY.find(h => h.id === historyId && h.type === 'Approved Adoption');
+
+            if (!adoptionRecord) {
+                showMessage('Error: Adoption record or certificate not found.', 'error');
+                return;
+            }
+
+            // Mock Data for Certificate
+            const adopter = currentProfile.firstName + ' ' + currentProfile.lastName;
+            const petName = adoptionRecord.petName;
+            const species = adoptionRecord.species || 'Unknown Species';
+            const adoptionDate = adoptionRecord.date;
+            const microchip = adoptionRecord.microchip || 'N/A';
+            const certificateId = `ADOPT-${adoptionRecord.id}`;
+            const organizationName = 'PAWS Rescue Center';
+            const organizationEmail = 'staff@pawsrescue.org';
+            const directorName = 'Dr. Jane Smith (Director)';
+
+
+            const certificateHtml = `
+                <div class="flex justify-end mb-4">
+                    <button onclick="handleDownloadCertificate()" id="download-certificate-btn" 
+                            class="bg-green-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-green-700 transition duration-200 shadow-md">
+                        <svg class="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                        Download as Image
+                    </button>
+                </div>
+
+                <div id="adoption-certificate-content" class="certificate max-w-3xl mx-auto my-4 p-8">
+                    <div class="certificate-content text-center space-y-8">
+                        
+                        <div class="space-y-2 border-b-2 border-orange-300 pb-4">
+                            <h1 class="text-4xl sm:text-5xl font-extrabold text-orange-600 tracking-wider">
+                                Certificate of Adoption
+                            </h1>
+                            <p class="text-lg text-gray-700 font-semibold">${organizationName}</p>
+                        </div>
+
+                        <div class="space-y-4 text-gray-800 pt-4">
+                            <p class="text-xl italic font-serif">
+                                This certificate is proudly presented to
+                            </p>
+                            <h2 class="text-4xl font-bold text-gray-900 border-b-4 border-dashed border-orange-200 inline-block px-8 py-2">
+                                ${adopter}
+                            </h2>
+                            <p class="text-xl font-semibold">
+                                For the successful adoption of:
+                            </p>
+                        </div>
+                        
+                        <div class="bg-orange-50 p-6 rounded-xl border border-orange-200 shadow-md">
+                            <h3 class="text-3xl font-extrabold text-orange-700">${petName}</h3>
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4 text-sm text-gray-700">
+                                <div><span class="font-semibold">Species:</span> ${species}</div>
+                                <div><span class="font-semibold">Microchip ID:</span> ${microchip}</div>
+                                <div><span class="font-semibold">Certificate No:</span> ${certificateId}</div>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-8 text-left pt-6">
+                            <div class="flex flex-col items-center">
+                                <p class="text-lg font-serif italic text-gray-700 mb-2">Issued On</p>
+                                <p class="text-2xl font-bold text-gray-800 border-b border-gray-400 pb-1">${adoptionDate}</p>
+                            </div>
+                            <div class="flex flex-col items-center">
+                                <p class="text-lg font-serif italic text-gray-700 mb-2">Signed By</p>
+                                <p class="text-2xl font-bold text-gray-800 border-b border-gray-400 pb-1">${directorName}</p>
+                                <p class="text-xs text-gray-500 mt-1">Authorized Signature, ${organizationName}</p>
+                            </div>
+                        </div>
+
+                        <p class="text-sm text-gray-500 pt-8">
+                            This document legally recognizes the transfer of guardianship and responsibility for the welfare of the adopted animal to the named adopter.
+                            For inquiries, contact: ${organizationEmail}
+                        </p>
+                    </div>
+                </div>
+            `;
+
+            openModal(`Adoption Certificate: ${petName}`, certificateHtml);
+        }
+
+        /**
+         * Triggers the download process by opening the modal and immediately calling the download function.
+         * This ensures the certificate data is loaded before attempting the download.
+         * @param {number} historyId 
+         */
+        function handleDownloadCertificateTrigger(historyId) {
+            handleViewCertificate(historyId);
+            // Wait a moment for the modal to render before initiating the canvas capture
+            setTimeout(handleDownloadCertificate, 100); 
+        }
+
+        /**
+         * Uses html2canvas to convert the certificate element into an image and initiates download.
+         */
+        function handleDownloadCertificate() {
+            const certificateElement = document.getElementById('adoption-certificate-content');
+            const downloadBtn = document.getElementById('download-certificate-btn');
+            
+            if (!certificateElement) {
+                showMessage('Certificate element not found.', 'error');
+                return;
+            }
+
+            // Temporarily disable the button and show loading state
+            if (downloadBtn) {
+                downloadBtn.disabled = true;
+                downloadBtn.innerHTML = '<svg class="w-5 h-5 inline mr-2 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 0012 4c-4.418 0-8 3.582-8 8s3.582 8 8 8 8-3.582 8-8v-1M4.54 16.54L9 12m0 0l-4.54-4.54"></path></svg> Generating...';
+            }
+
+            // Use html2canvas to capture the certificate content
+            html2canvas(certificateElement, {
+                scale: 2, // Increase scale for higher quality image output
+                useCORS: true,
+            }).then(canvas => {
+                // Convert canvas to image URL
+                const imageURL = canvas.toDataURL("image/png");
+                
+                // Create a temporary link element for downloading
+                const a = document.createElement('a');
+                const adoptionRecord = MOCK_HISTORY.find(h => h.id === parseInt(certificateElement.closest('.max-w-4xl').id.replace('ADOPT-', '')));
+                const petName = adoptionRecord ? adoptionRecord.petName.replace(/[^a-zA-Z0-9]/g, '') : 'Certificate';
+                
+                a.href = imageURL;
+                a.download = `${petName}_Adoption_Certificate.png`;
+                
+                // Append the link, click it, and remove it
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+
+                showMessage('Certificate downloaded!', 'success');
+            }).catch(error => {
+                console.error("Error during certificate generation:", error);
+                showMessage('Failed to generate certificate image.', 'error');
+            }).finally(() => {
+                // Restore button state
+                if (downloadBtn) {
+                    downloadBtn.disabled = false;
+                    downloadBtn.innerHTML = '<svg class="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg> Download as Image';
+                }
+                // If download was triggered directly, close the modal now that it's done
+                if (!document.getElementById('detail-modal').classList.contains('opacity-100')) {
+                   // This is an imperfect check, but ensures the modal only closes if the download was triggered outside the view
+                   closeModal(); 
+                }
+            });
+        }
+
+
+        // --- 7. INITIALIZATION ---
+
+        // Attach navigation click handlers
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.addEventListener('click', (e) => {
+                    const view = e.currentTarget.getAttribute('data-view');
+                    changeView(view);
+                });
+            });
+
+            // Set initial state to login
+            document.getElementById('dashboard-view').classList.add('hidden');
+            document.getElementById('login-view').classList.remove('hidden');
+
+            // Pre-fill login for convenience
+            document.getElementById('login-email').value = MOCK_USER.email;
+            document.getElementById('login-password').value = 'password123';
+        });
+    </script>
+
+</body>
+</html>
